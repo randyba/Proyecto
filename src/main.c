@@ -213,19 +213,6 @@ int main()
     {
         if (listaAutos[i].activo == 1)
         {
-<<<<<<< HEAD
-            for (int i = 0; i < cantidadAutos; i++)
-            {
-                DrawRectangle(400, 200 + i*40, 500, 35, LIGHTGRAY);
-                DrawText(listaAutos[i].nombre, 420, 210 + i*40, 20, BLACK);
-                DrawText(listaAutos[i].placa, 550, 210 + i*40, 20, BLACK);
-                DrawText(listaAutos[i].campo, 650, 210 + i*40, 20, BLACK);
-                DrawText(TextFormat("%d min", listaAutos[i].minutos_transcurridos),
-                    720, 210 + i*40, 20, BLACK);
-                DrawText(TextFormat("~c%.0f", listaAutos[i].monto_estimado),
-                    850, 210 + i*40, 20, BLACK);
-            }
-=======
             DrawRectangle(400, 220 + i*40, 600, 50, LIGHTGRAY);
 
             DrawText(listaAutos[i].nombre, 420, 240 + i*40, 20, BLACK);
@@ -241,7 +228,6 @@ int main()
 
             DrawRectangleRec(1100, 240 + i*40, 100, 40, RED);
             DrawText("Caducar", 1110, 250 + i*40, 100, 20, WHITE);
->>>>>>> randyba
         }
     }
 }
