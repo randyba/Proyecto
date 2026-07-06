@@ -10,6 +10,8 @@ typedef struct {
 
 void inicializarParqueo(Vehiculo parqueo[]);
 int registrarEntrada(Vehiculo parqueo[], char placa[]);
+int registrarSalida(Vehiculo parqueo[], char placa[]);
+int buscarVehiculoPorPlaca(Vehiculo parqueo[], char placa[]);
 int contarEspaciosDisponibles(Vehiculo parqueo[]);
 
 #endif
