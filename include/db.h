@@ -13,6 +13,9 @@ typedef struct {
     char   placa[20];
     char   campo[10];
     char   hora_entrada[20];
+    //Nuevo - calculados en vivo, no vienen de una columna real de la tabla
+    int minutos_transcurridos;
+    double monto_estimado;
 } Registro;
 
 // Inicializa la conexion y crea la tabla si no existe

@@ -106,7 +106,6 @@ int db_registrar_salida(sqlite3 *db, const char *placa, double *monto_calculado)
         return 0;
     }
 
-    // hora_salida = ahora; total = horas transcurridas * tarifa
     const char *consulta_actualizar =
         "UPDATE registros "
         "SET hora_salida = CURRENT_TIMESTAMP, "
@@ -129,7 +128,6 @@ int db_registrar_salida(sqlite3 *db, const char *placa, double *monto_calculado)
         return 0;
     }
 
-    // Recuperar el total recien calculado
     const char *consulta_total =
         "SELECT total FROM registros WHERE placa = ? "
         "ORDER BY id DESC LIMIT 1;";
@@ -167,7 +165,9 @@ int db_cancelar_registro(sqlite3 *db, const char *placa) {
 
 int db_listar_activos(sqlite3 *db, Registro lista[], int maximo) {
     const char *consulta =
-        "SELECT id, nombre, carro, placa, campo, hora_entrada "
+        "SELECT id, nombre, carro, placa, campo, hora_entrada, "
+        "ROUND((julianday('now') - julianday(hora_entrada)) * 24 * 60) AS minutos, "
+        "ROUND((julianday('now') - julianday(hora_entrada)) * 24 * ?, 2) AS monto_estimado "
         "FROM registros WHERE hora_salida IS NULL LIMIT ?;";
     sqlite3_stmt *sentencia;
     int contador = 0;
@@ -176,7 +176,8 @@ int db_listar_activos(sqlite3 *db, Registro lista[], int maximo) {
         fprintf(stderr, "Error preparando consulta: %s\n", sqlite3_errmsg(db));
         return 0;
     }
-    sqlite3_bind_int(sentencia, 1, maximo);
+    sqlite3_bind_double(sentencia, 1, TARIFA_POR_HORA);
+    sqlite3_bind_int(sentencia, 2, maximo);
 
     while (sqlite3_step(sentencia) == SQLITE_ROW && contador < maximo) {
         lista[contador].id = sqlite3_column_int(sentencia, 0);
@@ -191,6 +192,9 @@ int db_listar_activos(sqlite3 *db, Registro lista[], int maximo) {
                  "%s", (const char *)sqlite3_column_text(sentencia, 4));
         snprintf(lista[contador].hora_entrada, sizeof(lista[contador].hora_entrada),
                  "%s", (const char *)sqlite3_column_text(sentencia, 5));
+
+        lista[contador].minutos_transcurridos = sqlite3_column_int(sentencia, 6);
+        lista[contador].monto_estimado = sqlite3_column_double(sentencia, 7);
 
         contador++;
     }

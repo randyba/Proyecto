@@ -1,5 +1,6 @@
 #include <stdio.h>
-#include "parqueo.h"
+#include <string.h>
+#include "db.h"
 #include <raylib.h>
 
 int main()
@@ -13,163 +14,234 @@ int main()
 
     SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
 
-    // espacio disponible 8(llamar desde la base de datos)
-    int espacioDisponible = 3; // Este valor debería venir de la base de datos
+    sqlite3 *db;
+    if (!db_inicializar(&db, "parqueo.db")) {
+        fprintf(stderr, "No se pudo inicializar la base de datos.\n");
+        CloseWindow();
+        return 1;
+    }
 
-    typedef struct{
-    char owner[30];
-    char placa[10];
-    int espacio;
-    int tiempo;
-    int monto;
-    int estado; 
-} Auto;
+    int espacioDisponible = db_contar_disponibles(db);
 
-Auto listaAutos[] =
-{
-    {"Jhon", "ABC123", 1, 180, 1500, 1},
-    {"Jane", "XYZ789", 2, 120, 1000, 0},
-    {"Anne", "DEF456", 3, 90, 750, 0}
-};
+    Registro listaAutos[CAPACIDAD_MAXIMA];
+    int cantidadAutos = db_listar_activos(db, listaAutos, CAPACIDAD_MAXIMA);
 
+    float temporizadorRefresco = 0.0f;
 
-   
     //--------------------------------------------------------------------------------------
-    //coordinates for the exit button
     Rectangle boton = { 1820, 0, 100, 50 };
     Rectangle info = { 10, 300, 100, 50 };
     Rectangle btnCancelar = {980, 640, 160, 50};
     Rectangle btnGuardar = {720, 640, 160, 50};
 
+    Rectangle cajaOwner   = {760, 250, 350, 40};
+    Rectangle cajaPlaca   = {760, 320, 350, 40};
+    Rectangle cajaCarro   = {760, 390, 350, 40};
+    Rectangle cajaEspacio = {760, 460, 150, 40};
 
-    //variable de control para mostrar el mensaje de auto agregado
+    char inputOwner[30]   = "";
+    char inputPlaca[10]   = "";
+    char inputCarro[50]   = "";
+    char inputEspacio[5]  = "";
+
+    int campoActivo = -1;
+
+    // ---- NUEVO: mensaje de error del formulario (placa duplicada, lleno, campos vacíos) ----
+    char mensajeError[100] = "";
+    float tiempoMensajeError = 0.0f; // cuánto tiempo más se muestra el mensaje
+
     bool autoAgregado = true;
-
-    //variable de control para mostrar el formulario de registro de auto
     bool mostrarFormulario = false;
     
     while (!WindowShouldClose())
     {
-        
-        // Detectar si el mouse está sobre el botón
+        temporizadorRefresco += GetFrameTime();
+        if (temporizadorRefresco >= 1.0f) {
+            temporizadorRefresco = 0.0f;
+            cantidadAutos = db_listar_activos(db, listaAutos, CAPACIDAD_MAXIMA);
+            espacioDisponible = db_contar_disponibles(db);
+        }
+
+        // NUEVO: contador regresivo para que el mensaje de error desaparezca solo
+        if (tiempoMensajeError > 0.0f) {
+            tiempoMensajeError -= GetFrameTime();
+            if (tiempoMensajeError <= 0.0f) mensajeError[0] = '\0';
+        }
+
         Vector2 mouse = GetMousePosition();
         bool hover = CheckCollisionPointRec(mouse, boton);
         
         if (hover && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
-            break; // sale del loop y cierra ventana
+            break;
         }
 
         //--------------------------------------------------------------------------------------
-        // Boton para agregar un auto al parqueo (simulación)
         Vector2 center = {1820, 150};
         float radius = 30.0f;
         bool hoverCircle = CheckCollisionPointCircle(mouse, center, radius);
     
-        //Funcion del boton para agregar un auto al parqueo
         if (hoverCircle && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
-            mostrarFormulario = true; // Mostrar el formulario de registro de auto
+            mostrarFormulario = true;
         }
         
         //--------------------------------------------------------------------------------------
-        // Boton para cancelar el registro de auto
         bool hoverCancelar = CheckCollisionPointRec(mouse, btnCancelar);
         
         if (mostrarFormulario && hoverCancelar && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
             mostrarFormulario = false;
+            inputOwner[0] = '\0';
+            inputPlaca[0] = '\0';
+            inputCarro[0] = '\0';
+            inputEspacio[0] = '\0';
+            campoActivo = -1;
+            mensajeError[0] = '\0';
         }
         
         //--------------------------------------------------------------------------------------
-        // Boton para guardar el registro de auto
         bool hoverGuardar = CheckCollisionPointRec(mouse, btnGuardar);
         
         if (mostrarFormulario && hoverGuardar && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
-            mostrarFormulario = false;
-            autoAgregado = true; // Mostrar el mensaje de auto agregado
-            if (espacioDisponible > 0)
+            // NUEVO: validar que al menos placa y campo no vengan vacíos antes de llamar a la BD
+            if (strlen(inputPlaca) == 0 || strlen(inputEspacio) == 0)
             {
-                espacioDisponible--; // Disminuir el espacio disponible al agregar un auto
+                snprintf(mensajeError, sizeof(mensajeError), "Placa y Espacio son obligatorios.");
+                tiempoMensajeError = 3.0f;
+            }
+            else
+            {
+                // ---- NUEVO: la llamada real a la base de datos ----
+                if (db_registrar_entrada(db, inputOwner, inputCarro, inputPlaca, inputEspacio))
+                {
+                    // éxito: cerramos el formulario y refrescamos YA, sin esperar el timer de 1 seg
+                    mostrarFormulario = false;
+                    cantidadAutos = db_listar_activos(db, listaAutos, CAPACIDAD_MAXIMA);
+                    espacioDisponible = db_contar_disponibles(db);
+
+                    inputOwner[0] = '\0';
+                    inputPlaca[0] = '\0';
+                    inputCarro[0] = '\0';
+                    inputEspacio[0] = '\0';
+                    campoActivo = -1;
+                    mensajeError[0] = '\0';
+                }
+                else
+                {
+                    // fracaso: NO cerramos el formulario, así el usuario ve el error y corrige
+                    snprintf(mensajeError, sizeof(mensajeError),
+                        "No se pudo registrar (parqueo lleno o placa ya activa).");
+                    tiempoMensajeError = 3.0f;
+                }
+            }
+        }
+
+        if (mostrarFormulario)
+        {
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                if (CheckCollisionPointRec(mouse, cajaOwner))        campoActivo = 0;
+                else if (CheckCollisionPointRec(mouse, cajaPlaca))   campoActivo = 1;
+                else if (CheckCollisionPointRec(mouse, cajaCarro))   campoActivo = 2;
+                else if (CheckCollisionPointRec(mouse, cajaEspacio)) campoActivo = 3;
             }
 
+            char *bufferActivo = NULL;
+            int maxLen = 0;
+            switch (campoActivo)
+            {
+                case 0: bufferActivo = inputOwner;   maxLen = sizeof(inputOwner);   break;
+                case 1: bufferActivo = inputPlaca;   maxLen = sizeof(inputPlaca);   break;
+                case 2: bufferActivo = inputCarro;   maxLen = sizeof(inputCarro);   break;
+                case 3: bufferActivo = inputEspacio; maxLen = sizeof(inputEspacio); break;
+                default: bufferActivo = NULL; break;
+            }
+
+            if (bufferActivo != NULL)
+            {
+                int tecla = GetCharPressed();
+                while (tecla > 0)
+                {
+                    int len = strlen(bufferActivo);
+                    if (len < maxLen - 1 && tecla >= 32 && tecla <= 125)
+                    {
+                        bufferActivo[len] = (char)tecla;
+                        bufferActivo[len + 1] = '\0';
+                    }
+                    tecla = GetCharPressed();
+                }
+
+                if (IsKeyPressed(KEY_BACKSPACE))
+                {
+                    int len = strlen(bufferActivo);
+                    if (len > 0) bufferActivo[len - 1] = '\0';
+                }
+            }
         }
 
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
-        // Dibujar boton de salida
         DrawRectangleRec(boton, hover ? RED : GRAY);
         DrawText("Salir", boton.x + 25, boton.y + 15, 20, WHITE);
 
-        //mostrar la cantidad de autos en el parqueo
         DrawText(TextFormat("Espacio disponible: %d", espacioDisponible), 10, 10, 30, BLACK);
 
-        //--------------------------------------------------------------------------------------
-        // Dibujar el círculo para agregar un auto
         DrawCircleV(center, radius, hoverCircle ? GREEN : BLUE);
         DrawCircleLines(center.x, center.y, radius, BLACK);
-
-        //Dibujar + en el centro del círculo
         DrawText("+", center.x - 10, center.y - 20, 40, WHITE);
 
-        //--------------------------------------------------------------------------------------
-        //muestra la lista de autos en el parqueo
         if (autoAgregado)
         {
-            // DrawText("Auto agregado al parqueo!", 500, 500, 20, GREEN);
-            for (int i = 0; i < 3; i++){ // Mostrar el mensaje durante 1 segundo (60 frames){
+            for (int i = 0; i < cantidadAutos; i++)
+            {
                 DrawRectangle(400, 200 + i*40, 500, 35, LIGHTGRAY);
-
-                DrawText(listaAutos[i].owner, 420, 210 + i*40, 20, BLACK);
-
+                DrawText(listaAutos[i].nombre, 420, 210 + i*40, 20, BLACK);
                 DrawText(listaAutos[i].placa, 550, 210 + i*40, 20, BLACK);
-
-                DrawText(TextFormat("%d", listaAutos[i].espacio),
-                700, 210 + i*40, 20, BLACK);
-
-                DrawText(TextFormat("%d min", listaAutos[i].tiempo),
-                800, 210 + i*40, 20, BLACK);
-
-                DrawText(TextFormat("₡%d", listaAutos[i].monto),
-                950, 210 + i*40, 20, BLACK);
+                DrawText(listaAutos[i].campo, 650, 210 + i*40, 20, BLACK);
+                DrawText(TextFormat("%d min", listaAutos[i].minutos_transcurridos),
+                    720, 210 + i*40, 20, BLACK);
+                DrawText(TextFormat("~%c%.0f", (char)0xA2, listaAutos[i].monto_estimado),
+                    850, 210 + i*40, 20, BLACK);
             }
         }
         
         if (mostrarFormulario)
         {
-
             DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, 0.35f));
-
-            // Fondo del formulario
             DrawRectangle(550, 150, 800, 600, RAYWHITE);
-
-            // Borde
             DrawRectangleLines(550, 150, 800, 600, BLACK);
-
-            // Título
             DrawText("Agregar Automovil", 800, 180, 30, BLACK);
 
-            // Labels
-            DrawText("Owner:",   620, 260, 20, BLACK);
-            DrawText("Placa:",   620, 330, 20, BLACK);
-            DrawText("Espacio:", 620, 400, 20, BLACK);
-            DrawText("Tiempo:",  620, 470, 20, BLACK);
-            DrawText("Monto:",   620, 540, 20, BLACK);
+            DrawText("Owner:",  620, 260, 20, BLACK);
+            DrawText("Placa:",  620, 330, 20, BLACK);
+            DrawText("Carro:",  620, 400, 20, BLACK);
+            DrawText("Espacio:",620, 470, 20, BLACK);
 
-            // Cajas de texto
-            DrawRectangleLines(760,250,350,40,BLACK);
-            DrawRectangleLines(760,320,350,40,BLACK);
-            DrawRectangleLines(760,390,150,40,BLACK);
-            DrawRectangleLines(760,460,150,40,BLACK);
-            DrawRectangleLines(760,530,200,40,BLACK);
+            DrawRectangleLines(cajaOwner.x, cajaOwner.y, cajaOwner.width, cajaOwner.height,
+                campoActivo == 0 ? BLUE : BLACK);
+            DrawRectangleLines(cajaPlaca.x, cajaPlaca.y, cajaPlaca.width, cajaPlaca.height,
+                campoActivo == 1 ? BLUE : BLACK);
+            DrawRectangleLines(cajaCarro.x, cajaCarro.y, cajaCarro.width, cajaCarro.height,
+                campoActivo == 2 ? BLUE : BLACK);
+            DrawRectangleLines(cajaEspacio.x, cajaEspacio.y, cajaEspacio.width, cajaEspacio.height,
+                campoActivo == 3 ? BLUE : BLACK);
 
-            // Botón Guardar
+            DrawText(inputOwner,   cajaOwner.x + 8,   cajaOwner.y + 10,   20, BLACK);
+            DrawText(inputPlaca,   cajaPlaca.x + 8,   cajaPlaca.y + 10,   20, BLACK);
+            DrawText(inputCarro,   cajaCarro.x + 8,   cajaCarro.y + 10,   20, BLACK);
+            DrawText(inputEspacio, cajaEspacio.x + 8, cajaEspacio.y + 10, 20, BLACK);
+
+            // NUEVO: mostrar el mensaje de error, si hay uno activo
+            if (strlen(mensajeError) > 0) {
+                DrawText(mensajeError, 620, 600, 18, RED);
+            }
+
             DrawRectangleRec(btnGuardar, hoverGuardar ? GREEN : LIME);
             DrawText("Guardar",760,655,20,WHITE);
 
-            // Botón Cancelar
             DrawRectangleRec(btnCancelar, hoverCancelar ? RED : MAROON);
             DrawText("Cancelar", 1010, 655, 20, WHITE);
         }
@@ -178,6 +250,7 @@ Auto listaAutos[] =
         
     }
 
+    db_cerrar(db);
     CloseWindow();
     return 0;
 }
