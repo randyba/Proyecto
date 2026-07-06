@@ -13,8 +13,15 @@ typedef struct {
     char   placa[20];
     char   campo[10];
     char   hora_entrada[20];
+<<<<<<< HEAD
     int    activo;   // NUEVO: columna real en la tabla. 1 = activo, 0 = ya salió
     // calculados en vivo, no vienen de una columna real de la tabla
+=======
+
+    int    activo; // 1 = activo, 0 = ya salió
+    
+    //Nuevo - calculados en vivo, no vienen de una columna real de la tabla
+>>>>>>> randyba
     int minutos_transcurridos;
     double monto_estimado;
 } Registro;
