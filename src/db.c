@@ -8,6 +8,7 @@ int db_inicializar(sqlite3 **db, const char *ruta_archivo) {
         return 0;
     }
 
+    // NUEVO: se agregó la columna "activo INTEGER DEFAULT 1" al final
     const char *consulta_crear_tabla =
         "CREATE TABLE IF NOT EXISTS registros ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
@@ -17,7 +18,8 @@ int db_inicializar(sqlite3 **db, const char *ruta_archivo) {
         "campo TEXT NOT NULL, "
         "hora_entrada DATETIME DEFAULT CURRENT_TIMESTAMP, "
         "hora_salida DATETIME, "
-        "total REAL);";
+        "total REAL, "
+        "activo INTEGER DEFAULT 1);";
 
     char *mensaje_error = NULL;
     if (sqlite3_exec(*db, consulta_crear_tabla, NULL, NULL, &mensaje_error) != SQLITE_OK) {
@@ -29,8 +31,9 @@ int db_inicializar(sqlite3 **db, const char *ruta_archivo) {
 }
 
 int db_vehiculo_activo(sqlite3 *db, const char *placa) {
+    // CAMBIO: filtro ahora usa "activo = 1" en vez de "hora_salida IS NULL"
     const char *consulta =
-        "SELECT COUNT(*) FROM registros WHERE placa = ? AND hora_salida IS NULL;";
+        "SELECT COUNT(*) FROM registros WHERE placa = ? AND activo = 1;";
     sqlite3_stmt *sentencia;
     int activo = 0;
 
@@ -48,7 +51,8 @@ int db_vehiculo_activo(sqlite3 *db, const char *placa) {
 }
 
 int db_contar_disponibles(sqlite3 *db) {
-    const char *consulta = "SELECT COUNT(*) FROM registros WHERE hora_salida IS NULL;";
+    // CAMBIO: mismo filtro nuevo
+    const char *consulta = "SELECT COUNT(*) FROM registros WHERE activo = 1;";
     sqlite3_stmt *sentencia;
     int ocupados = 0;
 
@@ -76,6 +80,8 @@ int db_registrar_entrada(sqlite3 *db, const char *nombre,
         return 0;
     }
 
+    // NOTA: no hace falta poner "activo" acá — nace en 1 solo por el
+    // "DEFAULT 1" del CREATE TABLE, automático en cada INSERT.
     const char *consulta =
         "INSERT INTO registros (nombre, carro, placa, campo) "
         "VALUES (?, ?, ?, ?);";
@@ -106,11 +112,14 @@ int db_registrar_salida(sqlite3 *db, const char *placa, double *monto_calculado)
         return 0;
     }
 
+    // CAMBIO CLAVE: se agregó "activo = 0" en el mismo UPDATE que ya cierra
+    // hora_salida y calcula total — así los dos SIEMPRE cambian juntos.
     const char *consulta_actualizar =
         "UPDATE registros "
         "SET hora_salida = CURRENT_TIMESTAMP, "
-        "    total = ROUND((julianday(CURRENT_TIMESTAMP) - julianday(hora_entrada)) * 24 * ?, 2) "
-        "WHERE placa = ? AND hora_salida IS NULL;";
+        "    total = ROUND((julianday(CURRENT_TIMESTAMP) - julianday(hora_entrada)) * 24 * ?, 2), "
+        "    activo = 0 "
+        "WHERE placa = ? AND activo = 1;";
     sqlite3_stmt *sentencia;
 
     if (sqlite3_prepare_v2(db, consulta_actualizar, -1, &sentencia, NULL) != SQLITE_OK) {
@@ -146,8 +155,9 @@ int db_registrar_salida(sqlite3 *db, const char *placa, double *monto_calculado)
 }
 
 int db_cancelar_registro(sqlite3 *db, const char *placa) {
+    // CAMBIO: filtro nuevo, igual que en las demás
     const char *consulta =
-        "DELETE FROM registros WHERE placa = ? AND hora_salida IS NULL;";
+        "DELETE FROM registros WHERE placa = ? AND activo = 1;";
     sqlite3_stmt *sentencia;
 
     if (sqlite3_prepare_v2(db, consulta, -1, &sentencia, NULL) != SQLITE_OK) {
@@ -164,11 +174,12 @@ int db_cancelar_registro(sqlite3 *db, const char *placa) {
 }
 
 int db_listar_activos(sqlite3 *db, Registro lista[], int maximo) {
+    // CAMBIO: se agregó la columna "activo" al SELECT, filtro pasó a "activo = 1"
     const char *consulta =
-        "SELECT id, nombre, carro, placa, campo, hora_entrada, "
+        "SELECT id, nombre, carro, placa, campo, hora_entrada, activo, "
         "ROUND((julianday('now') - julianday(hora_entrada)) * 24 * 60) AS minutos, "
         "ROUND((julianday('now') - julianday(hora_entrada)) * 24 * ?, 2) AS monto_estimado "
-        "FROM registros WHERE hora_salida IS NULL LIMIT ?;";
+        "FROM registros WHERE activo = 1 LIMIT ?;";
     sqlite3_stmt *sentencia;
     int contador = 0;
 
@@ -193,13 +204,33 @@ int db_listar_activos(sqlite3 *db, Registro lista[], int maximo) {
         snprintf(lista[contador].hora_entrada, sizeof(lista[contador].hora_entrada),
                  "%s", (const char *)sqlite3_column_text(sentencia, 5));
 
-        lista[contador].minutos_transcurridos = sqlite3_column_int(sentencia, 6);
-        lista[contador].monto_estimado = sqlite3_column_double(sentencia, 7);
+        lista[contador].activo = sqlite3_column_int(sentencia, 6);
+        lista[contador].minutos_transcurridos = sqlite3_column_int(sentencia, 7);
+        lista[contador].monto_estimado = sqlite3_column_double(sentencia, 8);
 
         contador++;
     }
     sqlite3_finalize(sentencia);
     return contador;
+}
+
+// NUEVO: borra cualquier registro por su id, este activo o ya en historial.
+// Este es el que va a usar el botón "Eliminar" de la interfaz.
+int db_eliminar_registro(sqlite3 *db, int id) {
+    const char *consulta = "DELETE FROM registros WHERE id = ?;";
+    sqlite3_stmt *sentencia;
+
+    if (sqlite3_prepare_v2(db, consulta, -1, &sentencia, NULL) != SQLITE_OK) {
+        fprintf(stderr, "Error preparando eliminacion: %s\n", sqlite3_errmsg(db));
+        return 0;
+    }
+    sqlite3_bind_int(sentencia, 1, id);
+    sqlite3_step(sentencia);
+
+    int filas_afectadas = sqlite3_changes(db);
+    sqlite3_finalize(sentencia);
+
+    return filas_afectadas > 0;
 }
 
 void db_cerrar(sqlite3 *db) {
