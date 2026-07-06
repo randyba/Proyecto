@@ -47,17 +47,18 @@ int main()
     char inputEspacio[5]  = "";
 
     int campoActivo = -1;
-
+    
     // ---- NUEVO: mensaje de error del formulario (placa duplicada, lleno, campos vacíos) ----
     char mensajeError[100] = "";
     float tiempoMensajeError = 0.0f; // cuánto tiempo más se muestra el mensaje
-
+    
     bool autoAgregado = true;
     bool mostrarFormulario = false;
     
     
     while (!WindowShouldClose())
     {
+        int totalMonto = 0;
         temporizadorRefresco += GetFrameTime();
         if (temporizadorRefresco >= 1.0f) {
             temporizadorRefresco = 0.0f;
@@ -183,6 +184,7 @@ int main()
                 }
             }
         }
+        
 
         BeginDrawing();
         ClearBackground(RAYWHITE);
@@ -215,6 +217,8 @@ int main()
     {
         if (listaAutos[i].activo == 1)
         {
+
+            totalMonto += (int)listaAutos[i].monto_estimado;
             DrawRectangle(400, 220 + i*40, 600, 50, LIGHTGRAY);
             
             DrawText(listaAutos[i].nombre, 420, 240 + i*40, 20, BLACK);
@@ -236,7 +240,7 @@ int main()
             bool hoverCaducar = CheckCollisionPointRec(mouse, btnCaducar);
             if (autoAgregado && hoverCaducar && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
             {
-                // NUEVO: llamar a la función de la base de datos para caducar el registro
+                // // NUEVO: llamar a la función de la base de datos para caducar el registro
                 if (db_cancelar_registro(db, listaAutos[0].placa)) {
                     // éxito: refrescamos YA, sin esperar el timer de 1 seg
                     cantidadAutos = db_listar_activos(db, listaAutos, CAPACIDAD_MAXIMA);
@@ -253,6 +257,7 @@ int main()
             DrawRectangleRec(btnCaducar, hoverCaducar ? RED : MAROON);
             DrawText("X", btnCaducar.x + 6, btnCaducar.y + 6, 20, WHITE);
         }
+        
     }
 }
         
@@ -292,7 +297,11 @@ if (mostrarFormulario)
 
             DrawRectangleRec(btnCancelar, hoverCancelar ? RED : MAROON);
             DrawText("Cancelar", 1010, 655, 20, WHITE);
+
         }
+        
+        DrawText(TextFormat("TOTAL: $ %d", totalMonto), 1400, 900, 60, BLACK);
+        DrawText(TextFormat("SISTEMA DE PARQUEO"), 700, 60, 50, BLACK);
 
         EndDrawing();
         
