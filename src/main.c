@@ -38,6 +38,8 @@ int main()
     Rectangle cajaPlaca   = {760, 320, 350, 40};
     Rectangle cajaCarro   = {760, 390, 350, 40};
     Rectangle cajaEspacio = {760, 460, 150, 40};
+    Rectangle cajaMonto   = {760, 530, 200, 40};
+    Rectangle btnCaducar = { 950, 530, 100, 40 };
 
     char inputOwner[30]   = "";
     char inputPlaca[10]   = "";
@@ -197,14 +199,17 @@ int main()
         {
             for (int i = 0; i < cantidadAutos; i++)
             {
-                DrawRectangle(400, 200 + i*40, 500, 35, LIGHTGRAY);
-                DrawText(listaAutos[i].nombre, 420, 210 + i*40, 20, BLACK);
-                DrawText(listaAutos[i].placa, 550, 210 + i*40, 20, BLACK);
-                DrawText(listaAutos[i].campo, 650, 210 + i*40, 20, BLACK);
-                DrawText(TextFormat("%d min", listaAutos[i].minutos_transcurridos),
+                if (listaAutos[i].activo == 1) // Solo mostrar autos activos
+                {
+                    DrawRectangle(400, 200 + i*40, 500, 35, LIGHTGRAY);
+                    DrawText(listaAutos[i].nombre, 420, 210 + i*40, 20, BLACK);
+                    DrawText(listaAutos[i].placa, 550, 210 + i*40, 20, BLACK);
+                    DrawText(listaAutos[i].campo, 650, 210 + i*40, 20, BLACK);
+                    DrawText(TextFormat("%d min", listaAutos[i].minutos_transcurridos),
                     720, 210 + i*40, 20, BLACK);
-                DrawText(TextFormat("~%c%.0f", (char)0xA2, listaAutos[i].monto_estimado),
+                    DrawText(TextFormat("$%.0f", listaAutos[i].monto_estimado),
                     850, 210 + i*40, 20, BLACK);
+                }
             }
         }
         
