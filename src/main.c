@@ -203,7 +203,7 @@ int main()
                 DrawText(listaAutos[i].campo, 650, 210 + i*40, 20, BLACK);
                 DrawText(TextFormat("%d min", listaAutos[i].minutos_transcurridos),
                     720, 210 + i*40, 20, BLACK);
-                DrawText(TextFormat("~%c%.0f", (char)0xA2, listaAutos[i].monto_estimado),
+                DrawText(TextFormat("~c%.0f", listaAutos[i].monto_estimado),
                     850, 210 + i*40, 20, BLACK);
             }
         }
