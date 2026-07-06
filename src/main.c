@@ -39,7 +39,7 @@ int main()
     Rectangle cajaCarro   = {760, 390, 350, 40};
     Rectangle cajaEspacio = {760, 460, 150, 40};
     Rectangle cajaMonto   = {760, 530, 200, 40};
-    Rectangle btnCaducar = { 950, , 100, 40 };
+
 
     char inputOwner[30]   = "";
     char inputPlaca[10]   = "";
@@ -88,7 +88,7 @@ int main()
         {
             mostrarFormulario = true;
         }
-        
+        //--------------------------------------------------------------------------------------
         //--------------------------------------------------------------------------------------
         bool hoverCancelar = CheckCollisionPointRec(mouse, btnCancelar);
         
@@ -140,7 +140,7 @@ int main()
                 }
             }
         }
-
+        
         if (mostrarFormulario)
         {
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
@@ -186,7 +186,7 @@ int main()
 
         BeginDrawing();
         ClearBackground(RAYWHITE);
-
+        
         DrawRectangleRec(boton, hover ? RED : GRAY);
         DrawText("Salir", boton.x + 25, boton.y + 15, 20, WHITE);
 
@@ -194,18 +194,20 @@ int main()
 
         DrawCircleV(center, radius, hoverCircle ? GREEN : BLUE);
         DrawCircleLines(center.x, center.y, radius, BLACK);
-        DrawText("+", center.x - 10, center.y - 20, 40, WHITE);
-
-        if (autoAgregado)
-{
-    // Encabezado
-    DrawRectangle(400, 160, 600, 35, GRAY);
-
-    DrawText("Owner",   420, 170, 20, BLACK);
-    DrawText("Carro",   550, 170, 20, BLACK);
-    DrawText("Placa",   650, 170, 20, BLACK);
-    DrawText("Campo",   750, 170, 20, BLACK);
-    DrawText("Tiempo",  820, 170, 20, BLACK);
+        DrawText("+", center.x - 10, center.y - 20, 40, WHITE);      
+        
+        
+        
+        
+        if (autoAgregado){
+            // Encabezado
+            DrawRectangle(400, 160, 600, 35, GRAY);
+            
+            DrawText("Owner",   420, 170, 20, BLACK);
+            DrawText("Carro",   550, 170, 20, BLACK);
+            DrawText("Placa",   650, 170, 20, BLACK);
+            DrawText("Campo",   750, 170, 20, BLACK);
+            DrawText("Tiempo",  820, 170, 20, BLACK);
     DrawText("Monto",   920, 170, 20, BLACK);
 
     // Datos
@@ -214,55 +216,77 @@ int main()
         if (listaAutos[i].activo == 1)
         {
             DrawRectangle(400, 220 + i*40, 600, 50, LIGHTGRAY);
-
+            
             DrawText(listaAutos[i].nombre, 420, 240 + i*40, 20, BLACK);
             DrawText(listaAutos[i].carro, 550, 240 + i*40, 20, BLACK);
             DrawText(listaAutos[i].placa, 650, 240 + i*40, 20, BLACK);
             DrawText(listaAutos[i].campo, 750, 240 + i*40, 20, BLACK);
-
+            
             DrawText(TextFormat("%d min", listaAutos[i].minutos_transcurridos),
-                     820, 240 + i*40, 20, BLACK);
-
+            820, 240 + i*40, 20, BLACK);
+            
             DrawText(TextFormat("$%.0f", listaAutos[i].monto_estimado),
-                     920, 240 + i*40, 20, BLACK);
+            920, 240 + i*40, 20, BLACK);
+            
+            // Botón "Caducar"
+            Rectangle btnCaducar = {1025, 230 + i*40, 30, 30};
+            
+            
+            
+            bool hoverCaducar = CheckCollisionPointRec(mouse, btnCaducar);
+            if (autoAgregado && hoverCaducar && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                // NUEVO: llamar a la función de la base de datos para caducar el registro
+                if (db_cancelar_registro(db, listaAutos[0].placa)) {
+                    // éxito: refrescamos YA, sin esperar el timer de 1 seg
+                    cantidadAutos = db_listar_activos(db, listaAutos, CAPACIDAD_MAXIMA);
+                    espacioDisponible = db_contar_disponibles(db);
+                } else {
+                    // fracaso: mostrar mensaje de error (aunque no debería pasar)
+                    snprintf(mensajeError, sizeof(mensajeError),
+                        "No se pudo caducar el registro.");
+                    tiempoMensajeError = 3.0f;
+                }
+                listaAutos[0].activo = 0; // marcar como inactivo para que desaparezca de la lista
+            }
 
-            DrawRectangleRec(1100, 240 + i*40, 100, 40, RED);
-            DrawText("Caducar", 1110, 250 + i*40, 100, 20, WHITE);
+            DrawRectangleRec(btnCaducar, hoverCaducar ? RED : MAROON);
+            DrawText("X", btnCaducar.x + 6, btnCaducar.y + 6, 20, WHITE);
         }
     }
 }
         
-        if (mostrarFormulario)
-        {
-            DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, 0.35f));
-            DrawRectangle(550, 150, 800, 600, RAYWHITE);
-            DrawRectangleLines(550, 150, 800, 600, BLACK);
-            DrawText("Agregar Automovil", 800, 180, 30, BLACK);
-
-            DrawText("Owner:",  620, 260, 20, BLACK);
-            DrawText("Placa:",  620, 330, 20, BLACK);
-            DrawText("Carro:",  620, 400, 20, BLACK);
-            DrawText("Espacio:",620, 470, 20, BLACK);
-
-            DrawRectangleLines(cajaOwner.x, cajaOwner.y, cajaOwner.width, cajaOwner.height,
-                campoActivo == 0 ? BLUE : BLACK);
-            DrawRectangleLines(cajaPlaca.x, cajaPlaca.y, cajaPlaca.width, cajaPlaca.height,
-                campoActivo == 1 ? BLUE : BLACK);
+if (mostrarFormulario)
+{
+    DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, 0.35f));
+    DrawRectangle(550, 150, 800, 600, RAYWHITE);
+    DrawRectangleLines(550, 150, 800, 600, BLACK);
+    DrawText("Agregar Automovil", 800, 180, 30, BLACK);
+    
+    DrawText("Owner:",  620, 260, 20, BLACK);
+    DrawText("Placa:",  620, 330, 20, BLACK);
+    DrawText("Carro:",  620, 400, 20, BLACK);
+    DrawText("Espacio:",620, 470, 20, BLACK);
+    
+    DrawRectangleLines(cajaOwner.x, cajaOwner.y, cajaOwner.width, cajaOwner.height,
+        campoActivo == 0 ? BLUE : BLACK);
+        DrawRectangleLines(cajaPlaca.x, cajaPlaca.y, cajaPlaca.width, cajaPlaca.height,
+            campoActivo == 1 ? BLUE : BLACK);
             DrawRectangleLines(cajaCarro.x, cajaCarro.y, cajaCarro.width, cajaCarro.height,
                 campoActivo == 2 ? BLUE : BLACK);
-            DrawRectangleLines(cajaEspacio.x, cajaEspacio.y, cajaEspacio.width, cajaEspacio.height,
-                campoActivo == 3 ? BLUE : BLACK);
-
-            DrawText(inputOwner,   cajaOwner.x + 8,   cajaOwner.y + 10,   20, BLACK);
-            DrawText(inputPlaca,   cajaPlaca.x + 8,   cajaPlaca.y + 10,   20, BLACK);
-            DrawText(inputCarro,   cajaCarro.x + 8,   cajaCarro.y + 10,   20, BLACK);
-            DrawText(inputEspacio, cajaEspacio.x + 8, cajaEspacio.y + 10, 20, BLACK);
-
-            // NUEVO: mostrar el mensaje de error, si hay uno activo
-            if (strlen(mensajeError) > 0) {
-                DrawText(mensajeError, 620, 600, 18, RED);
-            }
-
+                DrawRectangleLines(cajaEspacio.x, cajaEspacio.y, cajaEspacio.width, cajaEspacio.height,
+                    campoActivo == 3 ? BLUE : BLACK);
+                    
+                    DrawText(inputOwner,   cajaOwner.x + 8,   cajaOwner.y + 10,   20, BLACK);
+                    DrawText(inputPlaca,   cajaPlaca.x + 8,   cajaPlaca.y + 10,   20, BLACK);
+                    DrawText(inputCarro,   cajaCarro.x + 8,   cajaCarro.y + 10,   20, BLACK);
+                    DrawText(inputEspacio, cajaEspacio.x + 8, cajaEspacio.y + 10, 20, BLACK);
+                    
+                    // NUEVO: mostrar el mensaje de error, si hay uno activo
+                    if (strlen(mensajeError) > 0) {
+                        DrawText(mensajeError, 620, 600, 18, RED);
+                    }
+                    
             DrawRectangleRec(btnGuardar, hoverGuardar ? GREEN : LIME);
             DrawText("Guardar",760,655,20,WHITE);
 
