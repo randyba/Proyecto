@@ -13,6 +13,9 @@ typedef struct {
     char   placa[20];
     char   campo[10];
     char   hora_entrada[20];
+
+    int    activo; // 1 = activo, 0 = ya salió
+    
     //Nuevo - calculados en vivo, no vienen de una columna real de la tabla
     int minutos_transcurridos;
     double monto_estimado;

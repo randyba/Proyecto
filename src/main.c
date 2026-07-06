@@ -39,7 +39,7 @@ int main()
     Rectangle cajaCarro   = {760, 390, 350, 40};
     Rectangle cajaEspacio = {760, 460, 150, 40};
     Rectangle cajaMonto   = {760, 530, 200, 40};
-    Rectangle btnCaducar = { 950, 530, 100, 40 };
+    Rectangle btnCaducar = { 950, , 100, 40 };
 
     char inputOwner[30]   = "";
     char inputPlaca[10]   = "";
@@ -54,6 +54,7 @@ int main()
 
     bool autoAgregado = true;
     bool mostrarFormulario = false;
+    
     
     while (!WindowShouldClose())
     {
@@ -196,22 +197,40 @@ int main()
         DrawText("+", center.x - 10, center.y - 20, 40, WHITE);
 
         if (autoAgregado)
+{
+    // Encabezado
+    DrawRectangle(400, 160, 600, 35, GRAY);
+
+    DrawText("Owner",   420, 170, 20, BLACK);
+    DrawText("Carro",   550, 170, 20, BLACK);
+    DrawText("Placa",   650, 170, 20, BLACK);
+    DrawText("Campo",   750, 170, 20, BLACK);
+    DrawText("Tiempo",  820, 170, 20, BLACK);
+    DrawText("Monto",   920, 170, 20, BLACK);
+
+    // Datos
+    for (int i = 0; i < cantidadAutos; i++)
+    {
+        if (listaAutos[i].activo == 1)
         {
-            for (int i = 0; i < cantidadAutos; i++)
-            {
-                if (listaAutos[i].activo == 1) // Solo mostrar autos activos
-                {
-                    DrawRectangle(400, 200 + i*40, 500, 35, LIGHTGRAY);
-                    DrawText(listaAutos[i].nombre, 420, 210 + i*40, 20, BLACK);
-                    DrawText(listaAutos[i].placa, 550, 210 + i*40, 20, BLACK);
-                    DrawText(listaAutos[i].campo, 650, 210 + i*40, 20, BLACK);
-                    DrawText(TextFormat("%d min", listaAutos[i].minutos_transcurridos),
-                    720, 210 + i*40, 20, BLACK);
-                    DrawText(TextFormat("$%.0f", listaAutos[i].monto_estimado),
-                    850, 210 + i*40, 20, BLACK);
-                }
-            }
+            DrawRectangle(400, 220 + i*40, 600, 50, LIGHTGRAY);
+
+            DrawText(listaAutos[i].nombre, 420, 240 + i*40, 20, BLACK);
+            DrawText(listaAutos[i].carro, 550, 240 + i*40, 20, BLACK);
+            DrawText(listaAutos[i].placa, 650, 240 + i*40, 20, BLACK);
+            DrawText(listaAutos[i].campo, 750, 240 + i*40, 20, BLACK);
+
+            DrawText(TextFormat("%d min", listaAutos[i].minutos_transcurridos),
+                     820, 240 + i*40, 20, BLACK);
+
+            DrawText(TextFormat("$%.0f", listaAutos[i].monto_estimado),
+                     920, 240 + i*40, 20, BLACK);
+
+            DrawRectangleRec(1100, 240 + i*40, 100, 40, RED);
+            DrawText("Caducar", 1110, 250 + i*40, 100, 20, WHITE);
         }
+    }
+}
         
         if (mostrarFormulario)
         {
